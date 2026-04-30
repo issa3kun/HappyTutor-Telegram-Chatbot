@@ -1,0 +1,124 @@
+{
+  "training_modules": [
+    {
+      "id": 1,
+      "title": "Module 1: Dummy Communication Policy",
+      "content": "This is dummy training content for Module 1. Teachers should communicate professionally, respond clearly, and escalate urgent issues to the correct supervisor.",
+      "resource_link": "https://example.com/dummy-resource",
+      "pass_mark": 2,
+      "question_count": 3,
+      "quiz": [
+        {
+          "question": "What should a teacher do when there is an urgent issue?",
+          "options": [
+            "Ignore it",
+            "Escalate it to the correct supervisor",
+            "Wait until next week",
+            "Ask a student to handle it"
+          ],
+          "correct_answer": 1
+        },
+        {
+          "question": "Which communication style is expected?",
+          "options": [
+            "Professional and clear",
+            "Rude and vague",
+            "Silent at all times",
+            "Casual with no boundaries"
+          ],
+          "correct_answer": 0
+        },
+        {
+          "question": "What is this module testing?",
+          "options": [
+            "Cooking skills",
+            "Communication policy understanding",
+            "Driving ability",
+            "Office decoration"
+          ],
+          "correct_answer": 1
+        },
+        {
+          "question": "Who should handle urgent escalations?",
+          "options": [
+            "The correct supervisor",
+            "Any random person",
+            "A student",
+            "Nobody"
+          ],
+          "correct_answer": 0
+        },
+        {
+          "question": "Good teacher communication should be:",
+          "options": [
+            "Confusing",
+            "Late",
+            "Professional",
+            "Aggressive"
+          ],
+          "correct_answer": 2
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Module 2: Placeholder Module",
+      "content": "This is a placeholder for Module 2. Content will be added later.",
+      "resource_link": "https://example.com/placeholder-resource",
+      "pass_mark": 2,
+      "question_count": 3,
+      "quiz": [
+        {
+          "question": "This is a placeholder question for Module 2.",
+          "options": [
+            "Option A",
+            "Option B",
+            "Option C",
+            "Option D"
+          ],
+          "correct_answer": 0
+        },
+        {
+          "question": "Another placeholder question for Module 2.",
+          "options": [
+            "Option A",
+            "Option B",
+            "Option C",
+            "Option D"
+          ],
+          "correct_answer": 1
+        },
+        {
+          "question": "Final placeholder question for Module 2.",
+          "options": [
+            "Option A",
+            "Option B",
+            "Option C",
+            "Option D"
+          ],
+          "correct_answer": 2
+        }
+      ]
+    }
+  ],
+  "daily_tasks": {
+    "default": [
+      "Arrive 15 minutes early",
+      "Check classroom and teaching materials",
+      "Review lesson plan",
+      "Take attendance",
+      "Submit lesson notes before leaving"
+    ],
+    "first_day": [
+      "Report to centre supervisor",
+      "Collect teaching materials",
+      "Learn attendance procedure",
+      "Understand dismissal procedure",
+      "Confirm who to contact for urgent help"
+    ]
+  },
+  "contacts": {
+    "coordinator": "Centre Coordinator: 9123 4567",
+    "admin": "Admin Office: 6789 1234"
+  }
+} 

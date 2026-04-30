@@ -1,0 +1,71 @@
+{
+  "user_progress": {
+    "5070972822": {
+      "module_id": 1,
+      "question_index": 0,
+      "score": 0,
+      "questions": [
+        {
+          "question": "How should a teacher speak?",
+          "options": [
+            "Rudely",
+            "Professionally",
+            "Lazily",
+            "Randomly"
+          ],
+          "correct_answer": 1
+        },
+        {
+          "question": "Clear communication means:",
+          "options": [
+            "Confusing words ",
+            "Easy to understand",
+            "No talking",
+            "Talk loudly"
+          ],
+          "correct_answer": 1
+        },
+        {
+          "question": "Who should handle serious issues?",
+          "options": [
+            "The teacher alone",
+            "The correct supervisor",
+            "Parents only",
+            "Students"
+          ],
+          "correct_answer": 1
+        },
+        {
+          "question": "Good communication is:",
+          "options": [
+            "Professional",
+            "Rude",
+            "Silent",
+            "Careless"
+          ],
+          "correct_answer": 0
+        },
+        {
+          "question": "What should a teacher do in urgent cases?",
+          "options": [
+            "Ignore it",
+            "Tell the correct supervisor",
+            "Wait until tomorrow",
+            "Ask a student"
+          ],
+          "correct_answer": 1
+        }
+      ]
+    }
+  },
+  "completed_modules": {
+    "1551629287": [
+      1,
+      2
+    ],
+    "1863774259": [
+      1,
+      2
+    ]
+  }
+}
