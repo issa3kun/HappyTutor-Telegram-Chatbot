@@ -25,9 +25,13 @@
 # - Original prototype files are stored in original_prototype_files.
 # ============================================================
 
+from email.mime import message
+from multiprocessing import context
 import random
+import time
+import bcrypt
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
 from pymongo import MongoClient
 
 
@@ -42,11 +46,19 @@ progress_collection = db["user_progress"]
 modules_collection = db["training_modules"]
 daily_tasks_collection = db["daily_tasks"]
 contacts_collection = db["contacts"]
+teachers_collection = db["teachers"]
 # ============================================================
 # BOT TOKEN
 # ============================================================
 
 TOKEN = "8575673781:AAGGzNVekx8UQdcaHzcCL9mDva3Fou2DV0o"
+
+
+# ============================================================
+# LOGIN SESSION SETTINGS
+# ============================================================
+
+IDLE_TIMEOUT_SECONDS = 30 * 60  # 30 minute
 
 # ============================================================
 # DATA LOADING FUNCTIONS
@@ -105,6 +117,123 @@ def build_module_text(module):
         f"Resource: {module['resource_link']}"
     )
 
+# ============================================================
+# LOGIN FUNCTIONS
+# ============================================================
+
+def hash_password(password):
+    """
+    Hashes a plain password before saving it into MongoDB.
+    This prevents storing real passwords directly.
+    """
+    password_bytes = password.encode("utf-8")
+    hashed_password = bcrypt.hashpw(password_bytes, bcrypt.gensalt())
+    return hashed_password.decode("utf-8")
+
+
+def check_password(password, password_hash):
+    """
+    Checks whether the entered password matches the saved hashed password.
+    """
+    password_bytes = password.encode("utf-8")
+    hash_bytes = password_hash.encode("utf-8")
+    return bcrypt.checkpw(password_bytes, hash_bytes)
+
+
+def is_logged_in(user_id):
+    """
+    Checks if a Telegram user is already linked to an active teacher account.
+    """
+    teacher = teachers_collection.find_one({
+        "telegram_id": int(user_id),
+        "is_active": True
+    })
+
+    return teacher is not None
+
+
+def get_teacher_by_username(username):
+    """
+    Finds a teacher account by username.
+    """
+    return teachers_collection.find_one({
+        "username": username,
+        "is_active": True
+    })
+
+
+def link_teacher_to_telegram(username, user_id):
+    """
+    Links a teacher account to the user's Telegram ID after successful login.
+    """
+    teachers_collection.update_one(
+        {"username": username},
+        {"$set": {"telegram_id": int(user_id)}}
+    )
+
+def is_session_logged_in(context):
+    """
+    Checks if the user is logged in for the current bot session.
+    This does not depend on MongoDB telegram_id.
+    """
+    return context.user_data.get("session_logged_in") is True
+
+
+def update_last_activity(context):
+    """
+    Updates the user's last activity time.
+    Used for idle timeout.
+    """
+    context.user_data["last_activity"] = time.time()
+
+
+def has_session_timed_out(context):
+    """
+    Checks if the user has been idle for too long.
+    """
+    if not is_session_logged_in(context):
+        return False
+
+    last_activity = context.user_data.get("last_activity")
+
+    if not last_activity:
+        return True
+
+    return time.time() - last_activity > IDLE_TIMEOUT_SECONDS
+
+
+def clear_login_session(context):
+    """
+    Clears the user's temporary login session.
+    """
+    context.user_data.pop("session_logged_in", None)
+    context.user_data.pop("last_activity", None)
+    context.user_data.pop("login_step", None)
+    context.user_data.pop("login_username", None)
+
+
+async def require_active_login(message, context):
+    """
+    Checks if the user has an active login session.
+    If the session expired, the user must log in again.
+    """
+    if not is_session_logged_in(context):
+        await ask_for_login(message, context)
+        return False
+
+    if has_session_timed_out(context):
+        clear_login_session(context)
+
+        await message.reply_text(
+            "Your session has timed out due to inactivity.\n"
+            "Please log in again."
+        )
+
+        await ask_for_login(message, context)
+        return False
+
+    update_last_activity(context)
+    return True
 
 # ============================================================
 # USER PROGRESS FUNCTIONS
@@ -321,6 +450,20 @@ def get_retry_menu(module_id):
 # MESSAGE HELPERS
 # ============================================================
 
+async def ask_for_login(message, context):
+    """
+    Starts the login process by asking the user for their username.
+    """
+    context.user_data["session_logged_in"] = False
+    context.user_data.pop("last_activity", None)
+    context.user_data.pop("login_username", None)
+    context.user_data["login_step"] = "waiting_for_username"
+
+    await message.reply_text(
+        "Please log in before using the Teacher Support Bot.\n\n"
+        "Enter your username:"
+    )
+
 async def send_main_menu(message):
     await message.reply_text(
         "Welcome to the Teacher Support Bot.\nChoose an option below:",
@@ -355,32 +498,99 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     Handles the /start command.
 
-    Supports:
-    /start onboarding
-    /start module1
-    /start
+    Every time the user starts the bot, they must log in again.
     """
-    data = load_data()
     message = update.effective_message
 
-    if context.args:
-        payload = context.args[0]
+    clear_login_session(context)
 
-        if payload == "onboarding":
+    await ask_for_login(message, context)
+
+async def login_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Handles username and password messages during login.
+    """
+    message = update.effective_message
+    text = message.text.strip()
+    user_id = update.effective_user.id
+
+    login_step = context.user_data.get("login_step")
+
+    if is_session_logged_in(context):
+        if has_session_timed_out(context):
+            clear_login_session(context)
+
             await message.reply_text(
-                "Welcome to teacher onboarding.\nChoose an option below:",
-                reply_markup=get_main_menu()
+                "Your session has timed out due to inactivity.\n"
+                "Please log in again."
+            )
+
+            await ask_for_login(message, context)
+            return
+
+        update_last_activity(context)
+
+        await message.reply_text(
+            "You are already logged in.",
+            reply_markup=get_main_menu()
+        )
+        return
+
+    if login_step == "waiting_for_username":
+        teacher = get_teacher_by_username(text)
+
+        if not teacher:
+            await message.reply_text(
+                "Username not found. Please try again.\n\n"
+                "Enter your username:"
             )
             return
 
-        if payload == "module1":
-            module = find_module(data, 1)
+        context.user_data["login_username"] = text
+        context.user_data["login_step"] = "waiting_for_password"
 
-            if module:
-                await send_module_content(message, module)
-                return
+        await message.reply_text("Enter your password:")
+        return
 
-    await send_main_menu(message)
+    if login_step == "waiting_for_password":
+        username = context.user_data.get("login_username")
+        teacher = get_teacher_by_username(username)
+
+        if not teacher:
+            context.user_data.clear()
+            await message.reply_text(
+                "Login session expired. Please type /start to try again."
+            )
+            return
+
+        password_hash = teacher.get("password_hash")
+
+        if not password_hash or not check_password(text, password_hash):
+            context.user_data["login_step"] = "waiting_for_password"
+
+            await message.reply_text(
+                "Incorrect password. Please try again.\n\n"
+                "Enter your password:"
+            )
+            return
+
+        link_teacher_to_telegram(username, user_id)
+
+        context.user_data.pop("login_step", None)
+        context.user_data.pop("login_username", None)
+        context.user_data["session_logged_in"] = True
+        update_last_activity(context)
+
+        full_name = teacher.get("full_name", "Teacher")
+
+        await message.reply_text(
+            f"Login successful. Welcome, {full_name}!"
+        )
+
+        await send_main_menu(message)
+        return
+
+    await ask_for_login(message, context)
 
 
 # ============================================================
@@ -599,6 +809,9 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = query.from_user.id
     action = query.data
 
+    if not await require_active_login(query.message, context):
+        return
+
     if action == "main_menu":
         await send_main_menu(query.message)
         return
@@ -673,6 +886,7 @@ def main():
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(button_handler))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, login_text_handler))
 
     print("Bot is running...")
     app.run_polling()
